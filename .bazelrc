@@ -1,0 +1,20 @@
+# Required by OpenXLA
+# https://github.com/openxla/xla/issues/1323
+build --nocheck_visibility
+
+# Make Bazel print out all options from rc files.
+build --announce_rc
+
+build --cxxopt=-std=c++17
+build --host_cxxopt=-std=c++17
+build --spawn_strategy=standalone
+build --compilation_mode opt
+
+# host build is useless
+build --distinct_host_configuration=false
+
+# Flag to enable remote config
+common --experimental_repo_remote_exec
+
+# Put user-specific options in .bazelrc.user
+try-import %workspace%/.bazelrc.user

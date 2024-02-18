@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "torch_xla_vsi_plugin"
+version = "0.0.1"
+description = "VSI PJRT Plugin"
+requires-python = ">=3.8"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["torch_xla_vsi_plugin"]
+exclude = []
+namespaces = false
+
+[tool.setuptools.package-data]
+torch_xla_vsi_plugin = ["lib/*.so"]
+
+[project.entry-points."torch_xla.plugins"]
+vsi = "torch_xla_vsi_plugin:VsiPlugin"

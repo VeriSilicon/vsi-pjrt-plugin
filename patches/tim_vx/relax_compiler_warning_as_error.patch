@@ -1,0 +1,19 @@
+diff --git a/src/tim/vx/internal/BUILD b/src/tim/vx/internal/BUILD
+index f41b1cd..d5549dc 100644
+--- a/src/tim/vx/internal/BUILD
++++ b/src/tim/vx/internal/BUILD
+@@ -75,8 +75,12 @@ filegroup(
+ cc_library(
+     name = "ovxlibimpl",
+     copts = [
+-        "-Werror", "-Wmisleading-indentation",
+-        "-fvisibility=hidden", '-DOVXLIB_API=__attribute__((visibility(\\"default\\")))',
++        "-Werror",
++        "-Wmisleading-indentation",
++        "-Wno-error=unused-but-set-variable",
++        "-fno-strict-aliasing",
++        "-fvisibility=hidden",
++        '-DOVXLIB_API=__attribute__((visibility(\\"default\\")))',
+     ],
+     linkopts = ["-ldl", "-lm"],
+     alwayslink=True,
