@@ -1,0 +1,21 @@
+[Bb]uild/
+/bazel-*
+*.o
+*.so
+__pycache__/
+*.whl
+*.egg-info
+
+/.bazelrc.user
+.vscode/
+.env
+.envrc
+
+/external
+/compile_commands.json
+/.cache/
+
+/output/
+
+# Direct impl of PJRT API is not ready for now.
+/xla/pjrt/vsi/
