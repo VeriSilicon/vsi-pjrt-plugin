@@ -33,7 +33,6 @@ SOFTWARE.
 #include "xla/service/call_inliner.h"
 #include "xla/service/conditional_simplifier.h"
 #include "xla/service/dot_decomposer.h"
-#include "xla/service/dynamic_dimension_inference.h"
 #include "xla/service/dynamic_dimension_simplifier.h"
 #include "xla/service/dynamic_padder.h"
 #include "xla/service/gather_simplifier.h"
@@ -213,5 +212,5 @@ static void InitializeVsiCompiler() {
 }  // namespace vsi
 }  // namespace stream_executor
 
-REGISTER_MODULE_INITIALIZER(vsi_compiler,
-                            stream_executor::vsi::InitializeVsiCompiler());
+STREAM_EXECUTOR_REGISTER_MODULE_INITIALIZER(
+    vsi_compiler, stream_executor::vsi::InitializeVsiCompiler());

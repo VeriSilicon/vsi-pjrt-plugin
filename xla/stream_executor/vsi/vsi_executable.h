@@ -30,7 +30,6 @@ SOFTWARE.
 #include "tim/vx/graph.h"
 #include "tsl/platform/statusor.h"
 #include "xla/service/executable.h"
-#include "xla/stream_executor/stream_executor.h"
 
 namespace stream_executor {
 namespace vsi {

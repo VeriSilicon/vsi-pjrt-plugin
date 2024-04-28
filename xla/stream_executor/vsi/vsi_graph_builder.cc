@@ -24,13 +24,102 @@ SOFTWARE.
 #include <cstdint>
 #include <memory>
 
+#include "mlir/AsmParser/AsmParser.h"
+#include "mlir/IR/Attributes.h"
+#include "mlir/IR/MLIRContext.h"
 #include "tim/vx/ops.h"
 #include "tsl/platform/logging.h"
+#include "xla/hlo/ir/hlo_casting_utils.h"
+#include "xla/hlo/ir/hlo_instructions.h"
 #include "xla/hlo/ir/hlo_opcode.h"
-#include "xla/stream_executor/vsi/vsi_utils.h"
 
 namespace stream_executor {
 namespace vsi {
+
+namespace utils {
+
+static inline tim::vx::DataType ConvertXlaDataType(xla::PrimitiveType dtype) {
+  switch (dtype) {
+    case xla::PrimitiveType::S8:
+      return tim::vx::DataType::INT8;
+    case xla::PrimitiveType::U8:
+      return tim::vx::DataType::UINT8;
+    case xla::PrimitiveType::S16:
+      return tim::vx::DataType::INT16;
+    case xla::PrimitiveType::U16:
+      return tim::vx::DataType::UINT16;
+    case xla::PrimitiveType::S32:
+      return tim::vx::DataType::INT32;
+    case xla::PrimitiveType::U32:
+      return tim::vx::DataType::UINT32;
+    case xla::PrimitiveType::S64:
+      return tim::vx::DataType::INT64;
+    case xla::PrimitiveType::F16:
+      return tim::vx::DataType::FLOAT16;
+    case xla::PrimitiveType::F32:
+      return tim::vx::DataType::FLOAT32;
+    case xla::PrimitiveType::PRED:
+      return tim::vx::DataType::BOOL8;
+    default:
+      return tim::vx::DataType::UNKNOWN;
+  }
+}
+
+static inline tim::vx::TensorSpec ConvertXlaShape(
+    const xla::Shape& shape, tim::vx::TensorAttribute tensor_attr) {
+  auto vx_dtype = ConvertXlaDataType(shape.element_type());
+  auto vx_shape = tim::vx::ShapeType(shape.rank());
+
+  for (int64_t i = 0; i < shape.rank(); i++) {
+    vx_shape[shape.rank() - 1 - i] = static_cast<uint32_t>(shape.dimensions(i));
+  }
+
+  // TIM-VX does not support zero-ranked tensors.
+  if (shape.rank() == 0) {
+    vx_shape.push_back(1);
+  }
+
+  auto vx_spec = tim::vx::TensorSpec(vx_dtype, vx_shape, tensor_attr);
+  return vx_spec;
+}
+
+static tim::vx::Quantization ConvertQuantParams(
+    const mlir::DictionaryAttr& quant_attr, int64_t rank) {
+  int32_t vx_quant_axis = -1;
+  std::vector<float> scales;
+  std::vector<int32_t> zero_points;
+
+  auto quant_axis_attr = quant_attr.get("quantization_dimension");
+  if (quant_axis_attr) {
+    int64_t quant_axis = quant_axis_attr.cast<mlir::IntegerAttr>().getInt();
+    vx_quant_axis =
+        (quant_axis != -1) ? static_cast<int32_t>(rank - 1 - quant_axis) : -1;
+  }
+
+  auto scales_attr = quant_attr.get("scale");
+  if (scales_attr) {
+    for (auto scale_attr : scales_attr.cast<mlir::ArrayAttr>()) {
+      scales.push_back(static_cast<float>(
+          scale_attr.cast<mlir::FloatAttr>().getValueAsDouble()));
+    }
+  }
+
+  auto zero_points_attr = quant_attr.get("zero_point");
+  if (zero_points_attr) {
+    for (auto zero_point_attr : zero_points_attr.cast<mlir::ArrayAttr>()) {
+      zero_points.push_back(static_cast<int32_t>(
+          zero_point_attr.cast<mlir::IntegerAttr>().getInt()));
+    }
+  }
+
+  return (vx_quant_axis != -1)
+             ? tim::vx::Quantization(tim::vx::QuantType::SYMMETRIC_PER_CHANNEL,
+                                     vx_quant_axis, scales, zero_points)
+             : tim::vx::Quantization(tim::vx::QuantType::ASYMMETRIC, scales[0],
+                                     zero_points[0]);
+}
+
+}  // namespace utils
 
 tsl::Status VsiGraphBuilder::DefaultAction(
     const xla::HloInstruction* hlo_instruction) {
@@ -720,6 +809,73 @@ tsl::Status VsiGraphBuilder::HandleClamp(const xla::HloInstruction* clamp) {
   return tsl::OkStatus();
 }
 
+tsl::Status VsiGraphBuilder::HandleCustomCall(
+    const xla::HloInstruction* custom_call) {
+  const auto& target = custom_call->custom_call_target();
+  if (target == "stablehlo.uniform_quantize") {
+    return HandleQuantize(custom_call);
+  }
+
+  if (target == "stablehlo.uniform_dequantize") {
+    return HandleDequantize(custom_call);
+  }
+
+  return DefaultAction(custom_call);
+}
+
+tsl::Status VsiGraphBuilder::HandleQuantize(
+    const xla::HloInstruction* quantize) {
+  const auto& backend_config = quantize->raw_backend_config_string();
+  mlir::MLIRContext mlir_context;
+  auto quant_attr = mlir::parseAttribute(backend_config, &mlir_context)
+                        .dyn_cast<mlir::DictionaryAttr>();
+  if (!quant_attr) {
+    return tsl::errors::Internal(
+        "Couldn't parse backend config into a dictionary attribute");
+  }
+
+  int64_t rank = quantize->shape().rank();
+  auto vx_quant = utils::ConvertQuantParams(quant_attr, rank);
+
+  const auto* input_operand = quantize->operand(0);
+  auto input_tensor = hlo_instr_to_vx_tensor_.at(input_operand);
+  auto output_tensor = CreateOpOutputTensor(quantize);
+  output_tensor->GetSpec().SetQuantization(vx_quant);
+
+  auto vx_quantize_op = vx_graph_->CreateOperation<tim::vx::ops::DataConvert>();
+  vx_quantize_op->BindInput(input_tensor);
+  vx_quantize_op->BindOutput(output_tensor);
+
+  return tsl::OkStatus();
+}
+
+tsl::Status VsiGraphBuilder::HandleDequantize(
+    const xla::HloInstruction* dequantize) {
+  const auto& backend_config = dequantize->raw_backend_config_string();
+  mlir::MLIRContext mlir_context;
+  auto quant_attr = mlir::parseAttribute(backend_config, &mlir_context)
+                        .dyn_cast<mlir::DictionaryAttr>();
+  if (!quant_attr) {
+    return tsl::errors::Internal(
+        "Couldn't parse backend config into a dictionary attribute");
+  }
+
+  int64_t rank = dequantize->shape().rank();
+  auto vx_quant = utils::ConvertQuantParams(quant_attr, rank);
+
+  const auto* input_operand = dequantize->operand(0);
+  auto input_tensor = hlo_instr_to_vx_tensor_.at(input_operand);
+  auto output_tensor = CreateOpOutputTensor(dequantize);
+  input_tensor->GetSpec().SetQuantization(vx_quant);
+
+  auto vx_dequantize_op =
+      vx_graph_->CreateOperation<tim::vx::ops::DataConvert>();
+  vx_dequantize_op->BindInput(input_tensor);
+  vx_dequantize_op->BindOutput(output_tensor);
+
+  return tsl::OkStatus();
+}
+
 std::vector<std::shared_ptr<tim::vx::Tensor>>
 VsiGraphBuilder::CreateOpOutputTensors(const xla::HloInstruction* hlo_instr) {
   CHECK(hlo_instr->shape().IsTuple())
@@ -741,8 +897,21 @@ VsiGraphBuilder::CreateOpOutputTensors(const xla::HloInstruction* hlo_instr) {
 
 std::shared_ptr<tim::vx::Tensor> VsiGraphBuilder::CreateOpOutputTensor(
     const xla::HloInstruction* hlo_instr) {
-  auto tensor_attr = hlo_instr->IsRoot() ? tim::vx::TensorAttribute::OUTPUT
-                                         : tim::vx::TensorAttribute::TRANSIENT;
+  constexpr auto kIsGraphOutput = [](const xla::HloInstruction* hlo_instr) {
+    if (hlo_instr->IsRoot()) {
+      return true;
+    }
+    for (const auto* user : hlo_instr->users()) {
+      if (user->opcode() == xla::HloOpcode::kTuple && user->IsRoot()) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  auto tensor_attr = kIsGraphOutput(hlo_instr)
+                         ? tim::vx::TensorAttribute::OUTPUT
+                         : tim::vx::TensorAttribute::TRANSIENT;
   auto vx_spec = utils::ConvertXlaShape(hlo_instr->shape(), tensor_attr);
   auto vx_tensor = vx_graph_->CreateTensor(vx_spec);
 

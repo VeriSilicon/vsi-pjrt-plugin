@@ -4,48 +4,16 @@ This is a PJRT client implementation for the VeriSilicon NPU/GPU platform as a d
 
 ## Building
 
-Currently, the dynamic PJRT plugin registration API is not yet available in release version of PyTorch/XLA (See [pytorch/xla#6242](https://github.com/pytorch/xla/issues/6242)). To use our PJRT plugin for PyTorch, the user needs to build PyTorch/XLA from source of the master branch.
-
-### Install PyTorch nightly build from pip
+### Install PyTorch
 
 ```shell
-pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cpu
+pip3 install torch~=2.3.0 torchvision~=0.18.0 --index-url https://download.pytorch.org/whl/cpu
 ```
 
-Although we installed the pre-built PyTorch package from pip, in order to build the PyTorch/XLA, we still need a local PyTorch built from source.
-
-### Build PyTorch/XLA from source
-
-Clone the PyTorch repo:
+### Install PyTorch/XLA
 
 ```shell
-git clone --recursive https://github.com/pytorch/pytorch pytorch
-```
-
-Build PyTorch:
-
-```shell
-cd pytorch
-_GLIBCXX_USE_CXX11_ABI=0 USE_CUDA=0 BUILD_TEST=0 python3 setup.py develop --prefix=$HOME/.local
-```
-
-Clone the PyTorch/XLA repo:
-
-```shell
-git clone --recursive https://github.com/pytorch/xla.git torch_xla
-```
-
-Modify `torch_xla/bazel/dependencies.bzl` to locate the PyTorch directory:
-
-```shell
-PYTORCH_LOCAL_DIR = "../pytorch"
-```
-
-Build PyTorch/XLA:
-
-```shell
-cd torch_xla
-CXX_ABI=0 XLA_CUDA=0 BAZEL_VERBOSE=1 python3 setup.py develop --prefix=$HOME/.local
+pip3 install torch_xla~=2.3.0
 ```
 
 ### Build PJRT plugin
@@ -93,8 +61,11 @@ LD_LIBRARY_PATH=${VIVANTE_SDK_DIR}/[lib|lib64|drivers]
 # Need to specify hardware PID if using simulator driver.
 VSIMULATOR_CONFIG=VIP9000ULSI_PID0XBA
 
-XLA_STABLEHLO_COMPILE=1
+# Map PyTorch Long type to HLO s32 type.
 XLA_USE_32BIT_LONG=1
+# Since there's no StableHLO -> HLO conversion of Q/DQ ops,
+# need to disable HLO -> StableHLO -> HLO roundtrip.
+XLA_STABLEHLO_COMPILE=0
 ```
 
 ### Load plugin dynamically
