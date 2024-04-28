@@ -24,9 +24,7 @@ SOFTWARE.
 #include "tim/vx/tensor.h"
 #include "tsl/platform/logging.h"
 #include "tsl/platform/statusor.h"
-#include "xla/hlo/ir/hlo_casting_utils.h"
 #include "xla/hlo/ir/hlo_computation.h"
-#include "xla/hlo/ir/hlo_opcode.h"
 #include "xla/literal.h"
 #include "xla/service/maybe_owning_device_memory.h"
 #include "xla/service/shaped_buffer.h"
@@ -36,7 +34,6 @@ SOFTWARE.
 #include "xla/stream_executor/platform.h"
 #include "xla/stream_executor/stream.h"
 #include "xla/stream_executor/stream_executor.h"
-#include "xla/stream_executor/vsi/vsi_executor.h"
 #include "xla/stream_executor/vsi/vsi_graph_builder.h"
 
 namespace stream_executor {
@@ -114,6 +111,8 @@ tsl::StatusOr<xla::ExecutionOutput> VsiExecutable::ExecuteAsyncOnStream(
 
   auto output_vx_tensors = vx_graph_->OutputsTensor();
   if (result_shape.IsTuple()) {
+    CHECK_EQ(result_shape.tuple_shapes_size(), output_vx_tensors.size())
+        << "Mismatched output HLO tuple size and number of output vx tensors";
     for (auto& [index, result_memory] : result_buffer.buffers()) {
       if (index.empty()) {
         continue;
@@ -122,6 +121,8 @@ tsl::StatusOr<xla::ExecutionOutput> VsiExecutable::ExecuteAsyncOnStream(
       output_vx_tensor->CopyDataFromTensor(result_memory.opaque());
     }
   } else {
+    CHECK_EQ(1, output_vx_tensors.size())
+        << "Number of output vx tensor should be 1 for single output HLO graph";
     auto& result_memory =
         const_cast<DeviceMemoryBase&>(result_buffer.root_buffer());
     auto output_vx_tensor = output_vx_tensors[0];

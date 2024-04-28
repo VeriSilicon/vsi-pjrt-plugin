@@ -24,6 +24,7 @@ SOFTWARE.
 #include <memory>
 
 #include "xla/stream_executor/platform/initialize.h"
+#include "xla/stream_executor/platform_manager.h"
 #include "xla/stream_executor/vsi/vsi_executor.h"
 
 namespace stream_executor {
@@ -48,7 +49,6 @@ VsiPlatform::DescriptionForDevice(int ordinal) const {
 tsl::StatusOr<StreamExecutor*> VsiPlatform::ExecutorForDevice(int ordinal) {
   StreamExecutorConfig config;
   config.ordinal = ordinal;
-  config.device_options = DeviceOptions::Default();
   return GetExecutor(config);
 }
 
@@ -64,7 +64,7 @@ tsl::StatusOr<std::unique_ptr<StreamExecutor>> VsiPlatform::GetUncachedExecutor(
       std::make_unique<VsiExecutor>(vx_context_, config.ordinal);
   auto executor = std::make_unique<StreamExecutor>(
       this, std::move(vsi_executor), config.ordinal);
-  auto init_status = executor->Init(config.device_options);
+  auto init_status = executor->Init();
   if (!init_status.ok()) {
     return tsl::Status{
         absl::StatusCode::kInternal,
@@ -77,17 +77,17 @@ tsl::StatusOr<std::unique_ptr<StreamExecutor>> VsiPlatform::GetUncachedExecutor(
 }
 
 static void InitializeVsiPlatform() {
-  // Disabling leak checking, MultiPlatformManager does not destroy its
+  // Disabling leak checking, PlatformManager does not destroy its
   // registered platforms.
-  auto status = MultiPlatformManager::PlatformWithName("vsi");
+  auto status = PlatformManager::PlatformWithName("vsi");
   if (!status.ok()) {
     std::unique_ptr<VsiPlatform> platform(new VsiPlatform);
-    TF_CHECK_OK(MultiPlatformManager::RegisterPlatform(std::move(platform)));
+    TF_CHECK_OK(PlatformManager::RegisterPlatform(std::move(platform)));
   }
 }
 
 }  // namespace vsi
 }  // namespace stream_executor
 
-REGISTER_MODULE_INITIALIZER(vsi_platform,
-                            stream_executor::vsi::InitializeVsiPlatform());
+STREAM_EXECUTOR_REGISTER_MODULE_INITIALIZER(
+    vsi_platform, stream_executor::vsi::InitializeVsiPlatform());

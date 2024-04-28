@@ -65,7 +65,7 @@ class VsiCompiler final : public xla::Compiler {
 
   tsl::Status RunHloOptimization(xla::HloModule* hlo_module);
 
-  SE_DISALLOW_COPY_AND_ASSIGN(VsiCompiler);
+  TF_DISALLOW_COPY_AND_ASSIGN(VsiCompiler);
 };
 
 }  // namespace vsi

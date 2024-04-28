@@ -46,5 +46,5 @@ static void InitializeVsiTransferManager() {
 }  // namespace vsi
 }  // namespace stream_executor
 
-REGISTER_MODULE_INITIALIZER(
+STREAM_EXECUTOR_REGISTER_MODULE_INITIALIZER(
     vsi_transfer_manager, stream_executor::vsi::InitializeVsiTransferManager());

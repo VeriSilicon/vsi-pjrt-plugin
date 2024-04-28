@@ -69,12 +69,14 @@ cc_library(
     hdrs = [
         "vsi_executable.h",
         "vsi_graph_builder.h",
-        "vsi_utils.h",
     ],
     visibility = ["//visibility:public"],
     deps = [
         ":vsi_executor",
         "@com_google_absl//absl/synchronization",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:AsmParser",
+        "@llvm-project//mlir:IR",
         "@tim_vx//:tim-vx_interface",
         "@tsl//tsl/platform:errors",
         "@tsl//tsl/platform:logging",

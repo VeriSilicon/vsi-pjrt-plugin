@@ -46,7 +46,7 @@ class VsiTransferManager final : public xla::GenericTransferManager {
   }
 
  private:
-  SE_DISALLOW_COPY_AND_ASSIGN(VsiTransferManager);
+  TF_DISALLOW_COPY_AND_ASSIGN(VsiTransferManager);
 };
 
 }  // namespace vsi

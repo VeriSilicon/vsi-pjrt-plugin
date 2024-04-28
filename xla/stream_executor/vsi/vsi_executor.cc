@@ -61,13 +61,10 @@ static host::HostStream* AsHostStream(Stream* stream) {
 
 std::unique_ptr<internal::StreamInterface>
 VsiExecutor::GetStreamImplementation() {
-  return std::unique_ptr<internal::StreamInterface>(new host::HostStream(0));
+  return std::unique_ptr<internal::StreamInterface>(new host::HostStream());
 }
 
-tsl::Status VsiExecutor::Init(int device_ordinal,
-                              DeviceOptions device_options) {
-  return tsl::OkStatus();
-}
+tsl::Status VsiExecutor::Init(int device_ordinal) { return tsl::OkStatus(); }
 
 DeviceMemoryBase VsiExecutor::Allocate(uint64_t size, int64_t memory_space) {
   void* data = tsl::port::AlignedMalloc(size, 64);
@@ -146,24 +143,25 @@ tsl::Status VsiExecutor::Memset32(Stream* stream, DeviceMemoryBase* location,
   return tsl::OkStatus();
 }
 
-bool VsiExecutor::Memcpy(Stream* stream, void* host_dst,
-                         const DeviceMemoryBase& gpu_src, uint64_t size) {
+tsl::Status VsiExecutor::Memcpy(Stream* stream, void* host_dst,
+                                const DeviceMemoryBase& gpu_src,
+                                uint64_t size) {
   // Enqueue the [asynchronous] memcpy on the stream (HostStream) associated
   // with the HostExecutor.
   void* src_mem = const_cast<void*>(gpu_src.opaque());
   AsHostStream(stream)->EnqueueTask(
       [host_dst, src_mem, size]() { memcpy(host_dst, src_mem, size); });
-  return true;
+  return tsl::OkStatus();
 }
 
-bool VsiExecutor::Memcpy(Stream* stream, DeviceMemoryBase* gpu_dst,
-                         const void* host_src, uint64_t size) {
+tsl::Status VsiExecutor::Memcpy(Stream* stream, DeviceMemoryBase* gpu_dst,
+                                const void* host_src, uint64_t size) {
   void* dst_mem = gpu_dst->opaque();
   // Enqueue the [asynchronous] memcpy on the stream (HostStream) associated
   // with the HostExecutor.
   AsHostStream(stream)->EnqueueTask(
       [dst_mem, host_src, size]() { memcpy(dst_mem, host_src, size); });
-  return true;
+  return tsl::OkStatus();
 }
 
 bool VsiExecutor::MemcpyDeviceToDevice(Stream* stream,

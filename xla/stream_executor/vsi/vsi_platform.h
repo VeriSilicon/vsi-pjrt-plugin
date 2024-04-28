@@ -23,17 +23,12 @@ SOFTWARE.
 #define XLA_STREAM_EXECUTOR_VSI_VSI_PLATFORM_H_
 
 #include <memory>
-#include <vector>
 
-#include "absl/base/thread_annotations.h"
 #include "tim/vx/context.h"
 #include "tsl/platform/statusor.h"
 #include "xla/stream_executor/executor_cache.h"
-#include "xla/stream_executor/multi_platform_manager.h"
 #include "xla/stream_executor/platform.h"
-#include "xla/stream_executor/platform/port.h"
 #include "xla/stream_executor/stream_executor.h"
-#include "xla/stream_executor/stream_executor_internal.h"
 #include "xla/stream_executor/vsi/vsi_platform_id.h"
 
 namespace stream_executor {
@@ -74,7 +69,7 @@ class VsiPlatform final : public Platform {
 
   std::shared_ptr<tim::vx::Context> vx_context_;
 
-  SE_DISALLOW_COPY_AND_ASSIGN(VsiPlatform);
+  TF_DISALLOW_COPY_AND_ASSIGN(VsiPlatform);
 };
 
 }  // namespace vsi

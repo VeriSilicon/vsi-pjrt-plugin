@@ -40,12 +40,13 @@ PJRT_Error* PJRT_VsiDeviceTopology_Create(
       "Topology not supported for VSI compilation.")};
 }
 
-constexpr PJRT_Api kPjrtApi =
-    pjrt::CreatePjrtApi(pjrt::vsi_plugin::PJRT_Client_Create,
-                        pjrt::vsi_plugin::PJRT_VsiDeviceTopology_Create,
-                        pjrt::PJRT_Plugin_Initialize_NoOp);
-
-const PJRT_Api* GetVsiPjrtApi() { return &kPjrtApi; }
+const PJRT_Api* GetVsiPjrtApi() {
+  static const PJRT_Api kPjrtApi =
+      pjrt::CreatePjrtApi(pjrt::vsi_plugin::PJRT_Client_Create,
+                          pjrt::vsi_plugin::PJRT_VsiDeviceTopology_Create,
+                          pjrt::PJRT_Plugin_Initialize_NoOp);
+  return &kPjrtApi;
+}
 
 }  // namespace vsi_plugin
 }  // namespace pjrt

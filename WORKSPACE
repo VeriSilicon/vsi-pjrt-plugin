@@ -19,9 +19,9 @@ http_archive(
     patches = [
         # "//patches/openxla:some_patch.patch",
     ],
-    strip_prefix = "xla-b166243711f71b0a55daa1eda36b1dc745886784",
+    strip_prefix = "xla-01c52f2921c0eda9fdcc15d13227fbde08cbaca4",
     urls = [
-        "https://github.com/openxla/xla/archive/b166243711f71b0a55daa1eda36b1dc745886784.tar.gz",
+        "https://github.com/openxla/xla/archive/01c52f2921c0eda9fdcc15d13227fbde08cbaca4.tar.gz",
     ],
 )
 
@@ -71,9 +71,9 @@ http_archive(
     patches = [
         "//patches/tim_vx:relax_compiler_warning_as_error.patch",
     ],
-    strip_prefix = "TIM-VX-b4b4f00f474e3b2cc2b33783b45a6a53e017580c",
+    strip_prefix = "TIM-VX-3b80968fb140ced355dd6abc230f075d7882552d",
     urls = [
-        "https://github.com/VeriSilicon/TIM-VX/archive/b4b4f00f474e3b2cc2b33783b45a6a53e017580c.tar.gz",
+        "https://github.com/VeriSilicon/TIM-VX/archive/3b80968fb140ced355dd6abc230f075d7882552d.tar.gz",
     ],
 )
 

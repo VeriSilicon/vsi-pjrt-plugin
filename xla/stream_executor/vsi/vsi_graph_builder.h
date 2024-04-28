@@ -28,11 +28,7 @@ SOFTWARE.
 #include "absl/container/flat_hash_map.h"
 #include "tim/vx/graph.h"
 #include "tsl/platform/status.h"
-#include "tsl/platform/statusor.h"
-#include "xla/hlo/evaluator/hlo_evaluator.h"
 #include "xla/hlo/ir/dfs_hlo_visitor_with_default.h"
-#include "xla/hlo/ir/hlo_module.h"
-#include "xla/hlo/ir/hlo_module_group.h"
 
 namespace stream_executor {
 namespace vsi {
@@ -96,6 +92,8 @@ class VsiGraphBuilder final : public xla::ConstDfsHloVisitorWithDefault {
 
   tsl::Status HandleClamp(const xla::HloInstruction* clamp) override;
 
+  tsl::Status HandleCustomCall(const xla::HloInstruction* custom_call) override;
+
   // Invoked to inform the visitor that the traversal has completed, and that
   // the root was "root".
   tsl::Status FinishVisit(const xla::HloInstruction* /*root*/) override;
@@ -109,6 +107,9 @@ class VsiGraphBuilder final : public xla::ConstDfsHloVisitorWithDefault {
   tsl::Status HandleConv2d(const xla::HloInstruction* conv2d);
   tsl::Status HandleTransposedConv2d(
       const xla::HloInstruction* transposed_conv2d);
+
+  tsl::Status HandleQuantize(const xla::HloInstruction* quantize);
+  tsl::Status HandleDequantize(const xla::HloInstruction* dequantize);
 
   std::vector<std::shared_ptr<tim::vx::Tensor>> CreateOpOutputTensors(
       const xla::HloInstruction* hlo_instr);
@@ -124,7 +125,7 @@ class VsiGraphBuilder final : public xla::ConstDfsHloVisitorWithDefault {
 
   std::shared_ptr<tim::vx::Graph> vx_graph_;
 
-  SE_DISALLOW_COPY_AND_ASSIGN(VsiGraphBuilder);
+  TF_DISALLOW_COPY_AND_ASSIGN(VsiGraphBuilder);
 };
 
 }  // namespace vsi
